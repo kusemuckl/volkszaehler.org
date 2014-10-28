@@ -86,7 +86,12 @@ class CounterInterpreter extends Interpreter {
 
 			// instead of reverting what DataIterator->next did by $val = $row[1] / $row[2]
 			// get max value which DataIterator->next provides as courtesy
-			$delta_val = $row[3] - $last_val;
+			if ($last_val > $row[3]) {
+                                $delta_val = $row[3];
+                        }
+                        else {
+                                $delta_val = $row[3] - $last_val;
+                        }
 			$tuple = $callback(array(
 				(float) ($last_ts = $row[0]), // timestamp of interval end
 				(float) ($delta_val / $this->resolution) * 3.6e9 / $delta_ts, // doing df/dt
