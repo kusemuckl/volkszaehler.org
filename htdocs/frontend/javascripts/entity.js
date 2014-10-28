@@ -101,7 +101,7 @@ Entity.prototype.assignMatchingAxis = function() {
 	if (this.definition) {
 		// find axis with matching unit
 		if (vz.options.plot.yaxes.some(function(yaxis, idx) {
-			if (yaxis.axisLabel == undefined || (this.definition.unit == yaxis.axisLabel)) { // unoccupied or matching unit
+			if (yaxis.axisLabel === undefined || (this.definition.unit == yaxis.axisLabel)) { // unoccupied or matching unit
 				this.assignedYaxis = idx + 1;
 				return true;
 			}
@@ -118,7 +118,7 @@ Entity.prototype.assignMatchingAxis = function() {
  */
 Entity.prototype.assignAxis = function() {
 	// assign y-axis
-	if (this.yaxis == undefined || this.yaxis == 'auto') { // auto axis assignment
+	if (this.yaxis === undefined || this.yaxis == 'auto') { // auto axis assignment
 		this.assignMatchingAxis();
 	}
 	else { // forced axis assignment
@@ -130,12 +130,12 @@ Entity.prototype.assignAxis = function() {
 
 		// check if axis already has auto-allocated entities
 		var yaxis = vz.options.plot.yaxes[this.assignedYaxis-1];
-		if (yaxis.forcedGroup == undefined) { // axis auto-assigned
+		if (yaxis.forcedGroup === undefined) { // axis auto-assigned
 			if (yaxis.axisLabel !== undefined && this.definition.unit !== yaxis.axisLabel) { // unit mismatch
 				// move previously auto-assigned entities to different axis
 				yaxis.axisLabel = '*'; // force unit mismatch
 				vz.entities.each((function(entity) {
-					if (entity.assignedYaxis == this.yaxis && (entity.yaxis == undefined || entity.yaxis == 'auto')) {
+					if (entity.assignedYaxis == this.yaxis && (entity.yaxis === undefined || entity.yaxis == 'auto')) {
 						entity.assignMatchingAxis();
 					}
 				}).bind(this), true); // bind to have callback->this = this
@@ -192,6 +192,42 @@ Entity.prototype.updateData = function(data) {
 
 	this.updateAxisScale();
 	this.updateDOMRow();
+
+	// load totals whenever data changes - this happens async to updateDOMRow()
+	if (this.initialconsumption !== undefined) {
+		this.loadTotalConsumption();
+	}
+};
+
+/**
+ * Load total consumption from middleware
+ * @return jQuery dereferred object
+ */
+Entity.prototype.loadTotalConsumption = function() {
+	return vz.load({
+		controller: 'data',
+		url: this.middleware,
+		identifier: this.uuid,
+		context: this,
+		data: {
+			from: 0,
+			tuples: 1,
+			group: 'month' // maximum sensible grouping level
+		},
+		success: function(json) {
+			var consumption = 1000 * this.initialconsumption + json.data.consumption;
+
+			var row = $('#entity-' + this.uuid);
+			var unit = vz.wui.formatConsumptionUnit(this.definition.unit);
+
+			$('.total', row)
+				.data('total', consumption)
+				.text(vz.wui.formatNumber(consumption, vz.wui.unitPrefixingAllowed(unit, 'k')) + unit);
+
+			// unhide total column
+			vz.entities.updateTable();
+		}
+	});
 };
 
 /**
@@ -499,6 +535,7 @@ Entity.prototype.getDOMRow = function(parent) {
 		.append($('<td>').addClass('average'))		// avg
 		.append($('<td>').addClass('last'))		// last value
 		.append($('<td>').addClass('consumption'))	// consumption
+		.append($('<td>').addClass('total'))	// total consumption
 		.append($('<td>').addClass('cost'))		// costs
 		.append($('<td>')				// operations
 			.addClass('ops')
@@ -565,6 +602,7 @@ Entity.prototype.updateDOMRow = function() {
 	$('.last', row).text('');
 	$('.consumption', row).text('');
 	$('.cost', row).text('');
+	$('.total', row).text('').data('total', null);
 
 	if (this.data && this.data.rows > 0) { // update statistics if data available
 		var delta = this.data.to - this.data.from;
@@ -588,8 +626,8 @@ Entity.prototype.updateDOMRow = function() {
 		if (this.data.consumption) {
 			var unit = vz.wui.formatConsumptionUnit(this.definition.unit);
 			$('.consumption', row)
-				.text(vz.wui.formatNumber(this.data.consumption, true) + unit)
-				.attr('title', vz.wui.formatNumber(this.data.consumption * (year/delta), true) + unit + '/Jahr');
+				.text(vz.wui.formatNumber(this.data.consumption, vz.wui.unitPrefixingAllowed(unit)) + unit)
+				.attr('title', vz.wui.formatNumber(this.data.consumption * (year/delta), vz.wui.unitPrefixingAllowed(unit)) + unit + '/Jahr');
 		}
 
 		if (this.cost) {

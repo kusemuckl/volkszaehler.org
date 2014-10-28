@@ -130,7 +130,7 @@ vz.wui.dialogs.addProperties = function(container, proplist, className, entity) 
 
 		// hide properties from blacklist
 		var val = (entity && typeof entity[def] !== undefined) ? entity[def] : null;
-		if (val === null && vz.options.hiddenProperties.indexOf(def) >= 0) {
+		if ((typeof val === 'undefined' || val === null) && vz.options.hiddenProperties.indexOf(def) >= 0) {
 			return; // hide less commonly used properties
 		}
 
@@ -512,12 +512,12 @@ vz.wui.updateLegend = function() {
 				y = null;
 		} else { // no steps -> interpolate
 			var p1 = series.data[j - 1], p2 = series.data[j];
-			if (p1 == null || p2 == null)
+			if (p1 == null || p2 == null) // jshint ignore:line
 				y = null;
 			else
 				y = p1[1] + (p2[1] - p1[1]) * (pos.x - p1[0]) / (p2[0] - p1[0]);
 		}
-		if (y == null) {
+		if (y === null) {
 			vz.wui.legend.eq(i).text(series.title);
 		} else {
 			var d = new Date(pos.x);
@@ -654,9 +654,10 @@ vz.wui.clearTimeout = function(text) {
  */
 vz.wui.formatNumber = function(number, prefix) {
 	var siPrefixes = ['k', 'M', 'G', 'T'];
-	var siIndex = 0;
+	var siIndex = 0,
+			maxIndex = (typeof prefix == 'string') ? siPrefixes.indexOf(prefix)+1 : siPrefixes.length;
 
-	while (prefix && Math.abs(number) > 1000 && siIndex < siPrefixes.length-1) {
+	while (prefix && Math.abs(number) > 1000 && siIndex < maxIndex) {
 		number /= 1000;
 		siIndex++;
 	}
@@ -667,11 +668,20 @@ vz.wui.formatNumber = function(number, prefix) {
 		number = Math.round(number * Math.pow(10, precision)) / Math.pow(10, precision); // rounding
 	}
 
-	if (prefix) {
+	if (prefix)
 		number += (siIndex > 0) ? ' ' + siPrefixes[siIndex-1] : ' ';
-	}
+	else
+		number += ' ';
 
 	return number;
+};
+
+/**
+ * Prevent prefixing of special units during number formatting
+ */
+vz.wui.unitPrefixingAllowed = function(unit, maxPrefix) {
+	var staticUnit = ['l', 'm3', 'm^3', 'm³'].indexOf(unit) >= 0;
+	return (staticUnit) ? false : maxPrefix || true;
 };
 
 /**
@@ -708,7 +718,7 @@ vz.wui.drawPlot = function () {
 	vz.wui.updateHeadline();
 
 	// assign entities to axes
-	if (vz.options.plot.axesAssigned == false) {
+	if (vz.options.plot.axesAssigned === false) {
 		vz.entities.each(function(entity) {
 			entity.assignAxis();
 		}, true);

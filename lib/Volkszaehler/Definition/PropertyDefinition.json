@@ -63,8 +63,8 @@
 	},
 	{
 		"name"			: "resolution",
-		"type"			: "integer",
-		"min"			: 1,
+		"type"			: "float",
+		"min"			: 0.000001,
 		"translation"		: {
 			"de" : "Auflösung",
 			"en" : "Resolution"
@@ -422,6 +422,15 @@
 		"translation"		: {
 			"de" : "Lücke",
 			"en" : "Gap"
+		}
+	},
+	{
+		"name"			: "initialconsumption",
+		"type"			: "float",
+		"min"			: 0,
+		"translation"		: {
+			"de" : "Initialverbrauch",
+			"en" : "Initial consumption"
 		}
 	}
 ]

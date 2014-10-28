@@ -56,8 +56,6 @@ abstract class Interpreter {
 	protected $min = NULL;
 	protected $max = NULL;
 
-	const OPTIONS_SEPARATOR = ',';
-
 	/**
 	 * Constructor
 	 *
@@ -66,11 +64,11 @@ abstract class Interpreter {
 	 * @param integer $from timestamp in ms since 1970
 	 * @param integer $to timestamp in ms since 1970
 	 */
-	public function __construct(Model\Channel $channel, ORM\EntityManager $em, $from, $to, $tupleCount = null, $groupBy = null, $options = null) {
+	public function __construct(Model\Channel $channel, ORM\EntityManager $em, $from, $to, $tupleCount = null, $groupBy = null, $options = array()) {
 		$this->channel = $channel;
 		$this->groupBy = $groupBy;
 		$this->tupleCount = $tupleCount;
-		$this->options = explode(self::OPTIONS_SEPARATOR, $options);
+		$this->options = $options;
 		$this->conn = $em->getConnection(); // get dbal connection from EntityManager
 
 		// parse interval
@@ -93,6 +91,7 @@ abstract class Interpreter {
 
 	/**
 	 * Check if option is specified
+	 *
 	 * @param  string  $str option name
 	 */
 	private function hasOption($str) {
@@ -131,13 +130,13 @@ abstract class Interpreter {
 				$sql = 'SELECT MIN(timestamp) FROM (SELECT timestamp FROM data WHERE channel_id=? AND timestamp<? ORDER BY timestamp DESC LIMIT 2) t';
 				$from = $this->conn->fetchColumn($sql, array($this->channel->getId(), $this->from), 0);
 				if ($from)
-					$this->from = $from;
+					$this->from = (double)$from; // bigint conversion
 			}
 			if (isset($this->to)) {
 				$sql = 'SELECT MAX(timestamp) FROM (SELECT timestamp FROM data WHERE channel_id=? AND timestamp>? ORDER BY timestamp ASC LIMIT 2) t';
 				$to = $this->conn->fetchColumn($sql, array($this->channel->getId(), $this->to), 0);
 				if ($to)
-					$this->to = $to;
+					$this->to = (double)$to; // bigint conversion
 			}
 		}
 
@@ -197,7 +196,7 @@ abstract class Interpreter {
 	 * @return string grouped sql expression
 	 */
 	public static function groupExprSQL($expression) {
-		throw new Exception('Derived classes must implement static function groupExprSQL.');
+		throw new \Exception('Derived classes must implement static function groupExprSQL.');
 	}
 
 	/**
